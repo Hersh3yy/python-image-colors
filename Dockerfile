@@ -1,6 +1,7 @@
 # Use an official Python runtime as a parent image
 FROM python:3.9-slim-buster
 
+ENV PYTHONBUFFERED=1
 # Set the working directory in the container to /app
 WORKDIR /app
 
@@ -14,4 +15,4 @@ RUN pip install --no-cache-dir opencv-python-headless numpy scikit-learn flask f
 EXPOSE 8080
 
 # Run app.py when the container launches using gunicorn web server
-CMD exec gunicorn --bind :8080 --workers 1 --threads 8 app:app
+CMD exec gunicorn --bind :8080 --workers 1 --threads 1 --timeout 120 app:app
