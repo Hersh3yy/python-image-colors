@@ -19,7 +19,7 @@ CORS(app)
 # Function to get color palette from image
 def get_color_palette(image, n_colors):
     # Resize the image
-    image = cv2.resize(image, (800, 800))
+    image = cv2.resize(image, (400, 400))
     
     # Convert image from BGR to RGB color space
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -28,7 +28,7 @@ def get_color_palette(image, n_colors):
     pixels = image.reshape(-1, 3)
 
     # Perform KMeans to find the most dominant colors
-    kmeans = KMeans(n_clusters=n_colors, n_init=10)
+    kmeans = KMeans(n_clusters=n_colors, n_init=8)
     kmeans.fit(pixels)
     # Get the RGB values of the cluster centers
     colors = kmeans.cluster_centers_
