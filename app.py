@@ -18,6 +18,9 @@ CORS(app)
 
 # Function to get color palette from image
 def get_color_palette(image, n_colors):
+    # Resize the image
+    image = cv2.resize(image, (800, 800))
+    
     # Convert image from BGR to RGB color space
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     
