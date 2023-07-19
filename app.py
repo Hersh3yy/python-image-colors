@@ -89,7 +89,7 @@ def analyze():
         img_np = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
 
         # Get the color palette
-        palette = get_color_palette(img_np, 10)
+        palette = get_color_palette(img_np, 20)
 
         # Return the palette as a JSON response
         logging.info(f'Entire request took: {time.time() - start_time} seconds')
