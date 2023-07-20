@@ -9,7 +9,7 @@ WORKDIR /app
 ADD . /app
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir opencv-python-headless numpy scikit-learn flask flask-cors gunicorn webcolors
+RUN pip install --no-cache-dir opencv-python-headless numpy scikit-learn flask flask-cors gunicorn webcolors psycopg2-binary python-dotenv
 
 # Make port 8080 available to the world outside this container
 EXPOSE 8080

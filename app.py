@@ -1,5 +1,5 @@
 # Importing required libraries
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import cv2
 import numpy as np
@@ -8,6 +8,12 @@ import json
 import webcolors
 import logging
 import time
+import psycopg2
+import psycopg2.extras
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # take environment variables from .env.
 
 
 logging.basicConfig(level=logging.INFO)
@@ -94,6 +100,44 @@ def analyze():
         # Return the palette as a JSON response
         logging.info(f'Entire request took: {time.time() - start_time} seconds')
         return json.dumps(palette)
+    
+@app.route('/closest_color', methods=['GET'])
+def get_closest_color():
+    logging.info('Starting closest color query...')
+    start_time = time.time()
+
+    r = request.args.get('r', type=int)
+    g = request.args.get('g', type=int)
+    b = request.args.get('b', type=int)
+    
+    conn = psycopg2.connect(
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT")
+    )
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    cur.execute("""
+        SELECT 
+            color_names.color_name, 
+            color_names.hex, 
+            color_names.rgb <-> CUBE(array[%s,%s,%s]) as distance, 
+            parent_colors.color_name as parent_color_name, 
+            parent_colors.hex as parent_color_hex
+        FROM color_names
+        JOIN parent_colors ON color_names.parent_color_id = parent_colors.id
+        ORDER BY distance
+        LIMIT 1;
+    """, (r, g, b))
+
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    logging.info(f'Entire request took: {time.time() - start_time} seconds')
+    return jsonify(dict(result))
 
 @app.route('/test', methods=['GET'])
 def test():
