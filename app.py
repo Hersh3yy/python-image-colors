@@ -114,7 +114,7 @@ def get_closest_color():
             if hexCode is None:
                 return jsonify({"error": "Please provide r, g and b values"}), 400
             try:
-                r, g, b = webcolors.hex_to_rgb(hexCode)
+                r, g, b = webcolors.hex_to_rgb("#"+hexCode)
             except ValueError:
                 return jsonify({"error": "Invalid hex color code"}), 400
     
