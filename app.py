@@ -109,6 +109,14 @@ def get_closest_color():
     r = request.args.get('r', type=int)
     g = request.args.get('g', type=int)
     b = request.args.get('b', type=int)
+    if r is None or g is None or b is None:
+            hexCode = request.args.get('hex')
+            if hexCode is None:
+                return jsonify({"error": "Please provide r, g and b values"}), 400
+            try:
+                r, g, b = webcolors.hex_to_rgb(hexCode)
+            except ValueError:
+                return jsonify({"error": "Invalid hex color code"}), 400
     
     conn = psycopg2.connect(
         dbname=os.getenv("DB_NAME"),
