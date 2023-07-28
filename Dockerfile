@@ -9,10 +9,10 @@ WORKDIR /app
 ADD . /app
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir opencv-python-headless numpy scikit-learn flask flask-cors gunicorn webcolors psycopg2-binary python-dotenv
+RUN pip install --no-cache-dir opencv-python-headless numpy scikit-learn flask flask-cors gunicorn webcolors psycopg2-binary python-dotenv Flask-Testing
 
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
 
-# Run app.py when the container launches using gunicorn web server
-CMD exec gunicorn --bind :8080 --workers 1 --threads 1 --timeout 120 app:app
+# Run entrypoint.sh
+CMD ["./entrypoint.sh"]
