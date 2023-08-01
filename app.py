@@ -134,8 +134,8 @@ def get_closest_color():
             color_names.rgb <-> CUBE(array[%s,%s,%s]) as distance, 
             parent_colors.color_name as parent_color_name, 
             parent_colors.hex as parent_color_hex
-        FROM color_names
-        JOIN parent_colors ON color_names.parent_color_id = parent_colors.id
+        FROM color_names_rgb
+        JOIN parent_colors_rgb ON color_names.parent_color_id = parent_colors.id
         ORDER BY distance
         LIMIT 1;
     """, (r, g, b))
