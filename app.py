@@ -40,6 +40,7 @@ def get_color_palette(image, n_colors):
     # Perform KMeans to find the most dominant colors
     kmeans = KMeans(n_clusters=n_colors, n_init=8)
     kmeans.fit(pixels)
+    
     # Get the RGB values of the cluster centers
     colors = kmeans.cluster_centers_
 
