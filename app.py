@@ -25,7 +25,7 @@ CORS(app)
 # Function to get color palette from image
 def get_color_palette(image, n_colors):
     # Resize the image
-    image = cv2.resize(image, (400, 400))
+    image = cv2.resize(image, (600, 600))
     
     # Convert image from BGR to RGB color space
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -110,13 +110,13 @@ def get_closest_color():
     g = request.args.get('g', type=int)
     b = request.args.get('b', type=int)
     if r is None or g is None or b is None:
-            hexCode = request.args.get('hex')
-            if hexCode is None:
-                return jsonify({"error": "Please provide r, g and b values"}), 400
-            try:
-                r, g, b = webcolors.hex_to_rgb("#"+hexCode)
-            except ValueError:
-                return jsonify({"error": "Invalid hex color code"}), 400
+        hexCode = request.args.get('hex')
+        if hexCode is None:
+            return jsonify({"error": "Please provide r, g and b values"}), 400
+        try:
+            r, g, b = webcolors.hex_to_rgb("#"+hexCode)
+        except ValueError:
+            return jsonify({"error": "Invalid hex color code"}), 400
     
     conn = psycopg2.connect(
         dbname=os.getenv("DB_NAME"),
