@@ -197,7 +197,7 @@ def get_closest_color_rgb():
             parent_colors.color_name as parent_color_name, 
             parent_colors.hex as parent_color_hex
         FROM color_names_rgb
-        JOIN parent_colors_rgb ON color_names.parent_color_id = parent_colors.id
+        JOIN parent_colors_rgb ON color_names_rgb.parent_color_id = parent_colors.id
         ORDER BY distance
         LIMIT 1;
     """, (r, g, b))
