@@ -191,11 +191,11 @@ def get_closest_color_rgb():
 
     cur.execute("""
         SELECT 
-            color_names.color_name, 
-            color_names.hex, 
-            color_names.rgb <-> CUBE(array[%s,%s,%s]) as distance, 
-            parent_colors.color_name as parent_color_name, 
-            parent_colors.hex as parent_color_hex
+            color_names_rgb.color_name, 
+            color_names_rgb.hex, 
+            color_names_rgb.rgb <-> CUBE(array[%s,%s,%s]) as distance, 
+            parent_colors_rgb.color_name as parent_color_name, 
+            parent_colors_rgb.hex as parent_color_hex
         FROM color_names_rgb
         JOIN parent_colors_rgb ON color_names_rgb.parent_color_id = parent_colors_rgb.id
         ORDER BY distance
