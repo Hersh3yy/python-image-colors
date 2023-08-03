@@ -29,7 +29,7 @@ CORS(app)
 
 def get_color_palette(image, n_colors):
     # Resize the image
-    image = cv2.resize(image, (800, 800))
+    image = cv2.resize(image, (700, 700))
 
     # Convert image from BGR to RGB color space
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
