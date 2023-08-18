@@ -111,7 +111,7 @@ def analyze():
         return json.dumps(palette)
 
 
-@app.route('/closest_color', methods=['GET'])
+@app.route('/closest_color_lab', methods=['GET'])
 def get_closest_color():
     logging.info('Starting closest color query...')
     start_time = time.time()
@@ -144,13 +144,13 @@ def get_closest_color():
     # Update the SQL command to compare the LAB values
     cur.execute("""
         SELECT 
-            color_names.color_name, 
-            color_names.hex, 
-            color_names.lab <-> CUBE(array[%s,%s,%s]) as distance, 
-            parent_colors.color_name as parent_color_name, 
-            parent_colors.hex as parent_color_hex
-        FROM color_names
-        JOIN parent_colors ON color_names.parent_color_id = parent_colors.id
+            color_names_lab.color_name, 
+            color_names_lab.hex, 
+            color_names_lab.lab <-> CUBE(array[%s,%s,%s]) as distance, 
+            parent_colors_lab.color_name as parent_color_name, 
+            parent_colors_lab.hex as parent_color_hex
+        FROM color_names_lab
+        JOIN parent_colors_lab ON color_names_lab.parent_color_id = parent_colors_lab.id
         ORDER BY distance
         LIMIT 1;
     """, (lab.lab_l, lab.lab_a, lab.lab_b))
