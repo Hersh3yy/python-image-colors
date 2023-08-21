@@ -113,7 +113,7 @@ def analyze():
 
 @app.route('/closest_color_lab', methods=['GET'])
 def get_closest_color():
-    logging.info('Starting closest color query...')
+    logging.info('Starting closest color lab query...')
     start_time = time.time()
 
     r = request.args.get('r', type=int)
@@ -165,7 +165,7 @@ def get_closest_color():
 
 @app.route('/closest_color_rgb', methods=['GET'])
 def get_closest_color_rgb():
-    logging.info('Starting closest color query...')
+    logging.info('Starting closest color rgb query...')
     start_time = time.time()
 
     r = request.args.get('r', type=int)
