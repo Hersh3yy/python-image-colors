@@ -25,21 +25,28 @@ app = Flask(__name__)
 CORS(app)
 
 # Function to get color palette from image
-
-
 def get_color_palette(image, n_colors):
-    # Resize the image
-    image = cv2.resize(image, (700, 700))
+    # If the image has an alpha (transparency) channel, filter out transparent pixels
+    if image.shape[2] == 4:
+        logging.info('transparent image possibly being analyzed...')
+        non_transparent_pixels = image[:, :, 3] > 30
+        
+        alpha_values = image[:, :, 3]
+        logging.info(f"Alpha channel min value: {np.min(alpha_values)}, max value: {np.max(alpha_values)}")
+        
+        # Filter out the transparent pixels before converting to RGB
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
+        non_transparent_rgb_pixels = image_rgb[non_transparent_pixels]
 
-    # Convert image from BGR to RGB color space
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    # Reshape the image to be a list of RGB pixels
-    pixels = image.reshape(-1, 3)
+    else:
+        # Resize the image
+        image_rgb = cv2.resize(image, (700, 700))
+        image_rgb = cv2.cvtColor(image_rgb, cv2.COLOR_BGR2RGB)
+        non_transparent_rgb_pixels = image_rgb.reshape(-1, 3)
 
     # Perform KMeans to find the most dominant colors
     kmeans = KMeans(n_clusters=n_colors, n_init=9)
-    kmeans.fit(pixels)
+    kmeans.fit(non_transparent_rgb_pixels)
     
     # Get the RGB values of the cluster centers
     colors = kmeans.cluster_centers_
@@ -100,14 +107,13 @@ def analyze():
         npimg = np.frombuffer(filestr, np.uint8)
 
         # Convert the data to an image
-        img_np = cv2.imdecode(npimg, cv2.IMREAD_COLOR)
+        img_np = cv2.imdecode(npimg, cv2.IMREAD_UNCHANGED)
 
         # Get the color palette
         palette = get_color_palette(img_np, 10)
 
         # Return the palette as a JSON response
-        logging.info(
-            f'Entire request took: {time.time() - start_time} seconds')
+        logging.info(f'Entire request took: {time.time() - start_time} seconds')
         return json.dumps(palette)
 
 
