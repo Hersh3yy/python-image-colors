@@ -15,6 +15,7 @@ import os
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
 
+
 load_dotenv()  # take environment variables from .env.
 
 
@@ -23,6 +24,24 @@ logging.basicConfig(level=logging.INFO)
 # Instantiating Flask app
 app = Flask(__name__)
 CORS(app)
+
+def rgb_to_cmyk(r, g, b):
+    logging.info(f'RGB values received: {r}, {g}, {b}')
+
+    r = r / 255.0
+    g = g / 255.0
+    b = b / 255.0
+
+    k = 1 - max(r, g, b)
+    c = (1 - r - k) / (1 - k) if k != 1 else 0
+    m = (1 - g - k) / (1 - k) if k != 1 else 0
+    y = (1 - b - k) / (1 - k) if k != 1 else 0
+
+    c, m, y, k = [x * 100 for x in [c, m, y, k]]
+
+    logging.info(f'CMYK values calculated: {c}, {m}, {y}, {k}')
+    
+    return c, m, y, k
 
 # Function to get color palette from image
 def get_color_palette(image, n_colors):
@@ -116,6 +135,57 @@ def analyze():
         logging.info(f'Entire request took: {time.time() - start_time} seconds')
         return json.dumps(palette)
 
+@app.route('/closest_color_cmyk', methods=['GET'])
+def get_closest_color_cmyk():
+    logging.info('Starting closest color CMYK query...')
+    start_time = time.time()
+
+    r = request.args.get('r', type=int)
+    g = request.args.get('g', type=int)
+    b = request.args.get('b', type=int)
+    if r is None or g is None or b is None:
+        hexCode = request.args.get('hex')
+        if hexCode is None:
+            return jsonify({"error": "Please provide r, g, and b values"}), 400
+        try:
+            r, g, b = webcolors.hex_to_rgb("#" + hexCode)
+        except ValueError:
+            return jsonify({"error": "Invalid hex color code"}), 400
+
+    # Convert RGB to CMYK
+    c, m, y, k = rgb_to_cmyk(r, g, b)
+    conn = psycopg2.connect(
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT")
+    )
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    # Update the SQL command to compare the CMYK values
+    cur.execute("""
+        SELECT 
+            color_names_cmyk.color_name, 
+            color_names_cmyk.hex, 
+            color_names_cmyk.cmyk <-> CUBE(array[%s,%s,%s,%s]) as distance, 
+            parent_colors_cmyk.color_name as parent_color_name, 
+            parent_colors_cmyk.hex as parent_color_hex
+        FROM color_names_cmyk
+        JOIN parent_colors_cmyk ON color_names_cmyk.parent_color_id = parent_colors_cmyk.id
+        ORDER BY distance
+        LIMIT 1;
+    """, (c, m, y, k))
+
+    result = cur.fetchone()
+    logging.info(f'Result from the database: {result}')
+
+    cur.close()
+    conn.close()
+
+    logging.info(f'Entire request took: {time.time() - start_time} seconds')
+    return jsonify(dict(result))
+                
 
 @app.route('/closest_color_lab', methods=['GET'])
 def get_closest_color():
@@ -150,13 +220,13 @@ def get_closest_color():
     # Update the SQL command to compare the LAB values
     cur.execute("""
         SELECT 
-            color_names_lab.color_name, 
-            color_names_lab.hex, 
-            color_names_lab.lab <-> CUBE(array[%s,%s,%s]) as distance, 
-            parent_colors_lab.color_name as parent_color_name, 
-            parent_colors_lab.hex as parent_color_hex
-        FROM color_names_lab
-        JOIN parent_colors_lab ON color_names_lab.parent_color_id = parent_colors_lab.id
+            color_names_cmyk.color_name, 
+            color_names_cmyk.hex, 
+            color_names_cmyk.lab <-> CUBE(array[%s,%s,%s]) as distance, 
+            parent_colors_cmyk.color_name as parent_color_name, 
+            parent_colors_cmyk.hex as parent_color_hex
+        FROM color_names_cmyk
+        JOIN parent_colors_cmyk ON color_names_cmyk.parent_color_id = parent_colors_cmyk.id
         ORDER BY distance
         LIMIT 1;
     """, (lab.lab_l, lab.lab_a, lab.lab_b))
