@@ -12,7 +12,7 @@ import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 import os
-from colormath.color_objects import sRGBColor, LabColor
+from colormath.color_objects import sRGBColor, LabColor, CMYKColor
 from colormath.color_conversions import convert_color
 
 
@@ -24,6 +24,15 @@ logging.basicConfig(level=logging.INFO)
 # Instantiating Flask app
 app = Flask(__name__)
 CORS(app)
+
+def connect_db():
+    return psycopg2.connect(
+        dbname=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT")
+    )
 
 def rgb_to_cmyk(r, g, b):
     logging.info(f'RGB values received: {r}, {g}, {b}')
@@ -43,15 +52,40 @@ def rgb_to_cmyk(r, g, b):
     
     return c, m, y, k
 
+# Function to convert RGB to CMYK
+def rgb_to_cmyk(r, g, b):
+    c = 1 - r / 255.
+    m = 1 - g / 255.
+    y = 1 - b / 255.
+    k = min(c, m, y)
+    if k < 1:
+        c = (c - k) / (1 - k)
+        m = (m - k) / (1 - k)
+        y = (y - k) / (1 - k)
+    return c, m, y, k
+
+def extract_color_from_request():
+    r = request.args.get('r', type=int)
+    g = request.args.get('g', type=int)
+    b = request.args.get('b', type=int)
+
+    if r is None or g is None or b is None:
+        hexCode = request.args.get('hex')
+        if hexCode is None:
+            return None, None, None, {"error": "Please provide r, g and b values"}, 400
+        try:
+            r, g, b = webcolors.hex_to_rgb("#" + hexCode)
+        except ValueError:
+            return None, None, None, {"error": "Invalid hex color code"}, 400
+
+    return r, g, b, None, None
+
 # Function to get color palette from image
 def get_color_palette(image, n_colors):
     # If the image has an alpha (transparency) channel, filter out transparent pixels
     if image.shape[2] == 4:
         logging.info('transparent image possibly being analyzed...')
         non_transparent_pixels = image[:, :, 3] > 30
-        
-        alpha_values = image[:, :, 3]
-        logging.info(f"Alpha channel min value: {np.min(alpha_values)}, max value: {np.max(alpha_values)}")
         
         # Filter out the transparent pixels before converting to RGB
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGRA2RGB)
@@ -140,27 +174,15 @@ def get_closest_color_cmyk():
     logging.info('Starting closest color CMYK query...')
     start_time = time.time()
 
-    r = request.args.get('r', type=int)
-    g = request.args.get('g', type=int)
-    b = request.args.get('b', type=int)
-    if r is None or g is None or b is None:
-        hexCode = request.args.get('hex')
-        if hexCode is None:
-            return jsonify({"error": "Please provide r, g, and b values"}), 400
-        try:
-            r, g, b = webcolors.hex_to_rgb("#" + hexCode)
-        except ValueError:
-            return jsonify({"error": "Invalid hex color code"}), 400
+    r, g, b, error, status = extract_color_from_request()
+    if error:
+        return jsonify(error), status
 
     # Convert RGB to CMYK
+    # rgb = sRGBColor(r, g, b, is_upscaled=True)
+    # cmyk = convert_color(rgb, CMYKColor)
     c, m, y, k = rgb_to_cmyk(r, g, b)
-    conn = psycopg2.connect(
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT")
-    )
+    conn = connect_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     # Update the SQL command to compare the CMYK values
@@ -178,8 +200,9 @@ def get_closest_color_cmyk():
     """, (c, m, y, k))
 
     result = cur.fetchone()
-    logging.info(f'Result from the database: {result}')
-
+    logging.info(f'Result from the database for {[c, m, y, k]}: {result}')
+    if result is None:
+        return jsonify({"error": "No matching color found"}), 404
     cur.close()
     conn.close()
 
@@ -192,41 +215,27 @@ def get_closest_color():
     logging.info('Starting closest color lab query...')
     start_time = time.time()
 
-    r = request.args.get('r', type=int)
-    g = request.args.get('g', type=int)
-    b = request.args.get('b', type=int)
-    if r is None or g is None or b is None:
-        hexCode = request.args.get('hex')
-        if hexCode is None:
-            return jsonify({"error": "Please provide r, g and b values"}), 400
-        try:
-            r, g, b = webcolors.hex_to_rgb("#"+hexCode)
-        except ValueError:
-            return jsonify({"error": "Invalid hex color code"}), 400
+    r, g, b, error, status = extract_color_from_request()
+    if error:
+        return jsonify(error), status
 
     # Convert RGB to LAB
     rgb = sRGBColor(r, g, b, is_upscaled=True)
     lab = convert_color(rgb, LabColor)
 
-    conn = psycopg2.connect(
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT")
-    )
+    conn = conn = connect_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     # Update the SQL command to compare the LAB values
     cur.execute("""
         SELECT 
-            color_names_cmyk.color_name, 
-            color_names_cmyk.hex, 
-            color_names_cmyk.lab <-> CUBE(array[%s,%s,%s]) as distance, 
-            parent_colors_cmyk.color_name as parent_color_name, 
-            parent_colors_cmyk.hex as parent_color_hex
-        FROM color_names_cmyk
-        JOIN parent_colors_cmyk ON color_names_cmyk.parent_color_id = parent_colors_cmyk.id
+            color_names_lab.color_name, 
+            color_names_lab.hex, 
+            color_names_lab.lab <-> CUBE(array[%s,%s,%s]) as distance, 
+            parent_colors_lab.color_name as parent_color_name, 
+            parent_colors_lab.hex as parent_color_hex
+        FROM color_names_lab
+        JOIN parent_colors_lab ON color_names_lab.parent_color_id = parent_colors_lab.id
         ORDER BY distance
         LIMIT 1;
     """, (lab.lab_l, lab.lab_a, lab.lab_b))
@@ -235,6 +244,9 @@ def get_closest_color():
     cur.close()
     conn.close()
 
+    if result is None:
+        return jsonify({"error": "No matching color found"}), 404
+    
     logging.info(f'Entire request took: {time.time() - start_time} seconds')
     return jsonify(dict(result))
 
@@ -244,25 +256,12 @@ def get_closest_color_rgb():
     logging.info('Starting closest color rgb query...')
     start_time = time.time()
 
-    r = request.args.get('r', type=int)
-    g = request.args.get('g', type=int)
-    b = request.args.get('b', type=int)
-    if r is None or g is None or b is None:
-        hexCode = request.args.get('hex')
-        if hexCode is None:
-            return jsonify({"error": "Please provide r, g and b values"}), 400
-        try:
-            r, g, b = webcolors.hex_to_rgb("#"+hexCode)
-        except ValueError:
-            return jsonify({"error": "Invalid hex color code"}), 400
+    logging.info(extract_color_from_request)
+    r, g, b, error, status = extract_color_from_request()
+    if error:
+        return jsonify(error), status
 
-    conn = psycopg2.connect(
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT")
-    )
+    conn = conn = connect_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     cur.execute("""
