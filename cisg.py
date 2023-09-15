@@ -8,6 +8,7 @@ from colormath.color_objects import sRGBColor, LabColor, CMYKColor
 from colormath.color_conversions import convert_color
 from color_names import color_names, parent_colors
 
+logging.basicConfig(level=logging.INFO)
 # Function to establish a connection with the PostgreSQL database
 def connect_to_db():
     try:
@@ -44,15 +45,25 @@ def closest_color_in_space(requested_color, colors, color_space_fn, color_space)
     logging.info(f"Closest found {color_space} color: {closest_color}")
     return closest_color
 
-# Function to insert SQL commands into a file
-def insert_sql_command(color_info, table_type, color_space, closest_function, parent_ids, parent_colors, color_space_fn):
+
+def insert_parent_color_sql_command(color_info, color_space, parent_id):  # Added parent_id argument
     hex, name = color_info
     r, g, b = hex_to_rgb(hex)
     lab_l, lab_a, lab_b = hex_to_lab(hex)
     c, m, y, k = hex_to_cmyk(hex)
 
-    id_column_name = 'id' if table_type == "parent_colors" else 'parent_color_id'
-    
+    sql_command = f"""INSERT INTO parent_colors_{color_space} (id, color_name, hex, rgb, lab, cmyk)
+    VALUES ({parent_id}, '{name}', '{hex}', CUBE(array[{r}, {g}, {b}]), CUBE(array[{lab_l}, {lab_a}, {lab_b}]), CUBE(array[{c}, {m}, {y}, {k}]));\n"""
+
+    with open(f"insert_commands_{color_space}.sql", 'a') as f:
+        f.write(sql_command)
+
+def insert_color_name_sql_command(color_info, color_space, closest_function, parent_ids, parent_colors, color_space_fn):
+    hex, name = color_info
+    r, g, b = hex_to_rgb(hex)
+    lab_l, lab_a, lab_b = hex_to_lab(hex)
+    c, m, y, k = hex_to_cmyk(hex)
+
     closest_color = closest_function((r, g, b), parent_colors, color_space_fn, color_space)
     logging.info(f"Closest color computed: {closest_color}")
 
@@ -61,16 +72,16 @@ def insert_sql_command(color_info, table_type, color_space, closest_function, pa
     except KeyError:
         logging.warning(parent_ids)
         logging.warning(f"Could not find closest color: {closest_color}. Skipping this entry.")
-        return  # Skip the insertion for this color
+        return
 
-    sql_command = f"""INSERT INTO {table_type}_{color_space} (color_name, hex, rgb, lab, cmyk, {id_column_name})
+    sql_command = f"""INSERT INTO color_names_{color_space} (color_name, hex, rgb, lab, cmyk, parent_color_id)
     VALUES ('{name}', '{hex}', CUBE(array[{r}, {g}, {b}]), CUBE(array[{lab_l}, {lab_a}, {lab_b}]), CUBE(array[{c}, {m}, {y}, {k}]), {closest_color_id});\n"""
 
     with open(f"insert_commands_{color_space}.sql", 'a') as f:
         f.write(sql_command)
 
 
-# Existing helper functions like hex_to_rgb, hex_to_lab, hex_to_cmyk, etc. should remain unchanged
+# Existing helper functions
 def hex_to_rgb(hex):
     return webcolors.hex_to_rgb("#" + hex)
 
@@ -82,11 +93,9 @@ def hex_to_lab(hex):
 
 def hex_to_cmyk(hex):
     rgb = webcolors.hex_to_rgb("#" + hex)
-    srgb = sRGBColor(rgb[0], rgb[1], rgb[2], is_upscaled=True)
-    cmyk = convert_color(srgb, CMYKColor)
-    # Convert RGB to CMYK
-    logging.warn(cmyk)
-    return cmyk.cmyk_c, cmyk.cmyk_m, cmyk.cmyk_y, cmyk.cmyk_k
+    #srgb = sRGBColor(rgb[0], rgb[1], rgb[2], is_upscaled=True)
+    #cmyk = convert_color(srgb, CMYKColor)
+    return rgb_to_cmyk(rgb[0], rgb[1], rgb[2]) #cmyk.cmyk_c, cmyk.cmyk_m, cmyk.cmyk_y, cmyk.cmyk_k
 
 # Function to convert RGB to CMYK
 def rgb_to_cmyk(r, g, b):
@@ -125,20 +134,18 @@ for hex, name in parent_colors:
     parent_id_counter += 1
 
 logging.warning("parent colors array")
-logging.warning(parent_colors)
+logging.warning(parent_ids)
 
 # Insertion Loop for parent colors
 logging.info('Starting to insert parent colors')
 for hex, name in parent_colors:
-    insert_sql_command((hex, name), "parent_colors", args.color_space, closest_function, parent_ids, parent_colors_dict, color_space_functions.get(args.color_space, lambda x: x))
-
-logging.warning('Finished inserting parent colors')
-logging.warning(f"Parent IDs: {parent_ids}")
+    # Use the new function for parent colors
+    insert_parent_color_sql_command((hex, name), args.color_space, parent_ids[name])
 
 # Insertion Loop for color names
 logging.info('Starting to insert color names')
 for hex, name in color_names:
-    insert_sql_command((hex, name), "color_names", args.color_space, closest_function, parent_ids, parent_colors_dict, color_space_functions.get(args.color_space, hex_to_rgb))
+    insert_color_name_sql_command((hex, name), args.color_space, closest_function, parent_ids, parent_colors_dict, color_space_functions.get(args.color_space, hex_to_rgb))
 
 logging.info('Finished inserting color names')
 
