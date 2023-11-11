@@ -249,7 +249,7 @@ def get_closest_color_old():
     if result is None:
         return jsonify({"error": "No matching color found"}), 404
     logging.info(f'The result: {jsonify(dict(result))}')
-    logging.info(f'Entire closest_color request took: {time.time() - start_time} seconds')
+    logging.info(f'Entire closest_color old request took: {time.time() - start_time} seconds')
     return jsonify(dict(result))
 
 @app.route('/closest_color_rgb', methods=['GET'])
