@@ -213,7 +213,7 @@ def get_closest_color():
 
 
 @app.route('/closest_color_lab_old', methods=['GET'])
-def get_closest_color():
+def get_closest_color_old():
     logging.info('Starting closest color lab query...')
     start_time = time.time()
 
