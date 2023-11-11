@@ -163,52 +163,11 @@ def analyze():
         img_np = cv2.imdecode(npimg, cv2.IMREAD_UNCHANGED)
 
         # Get the color palette
-        palette = get_color_palette(img_np, 10)
+        palette = get_color_palette(img_np, 15)
 
         # Return the palette as a JSON response
-        logging.info(f'Entire request took: {time.time() - start_time} seconds')
-        return json.dumps(palette)
-
-@app.route('/closest_color_cmyk', methods=['GET'])
-def get_closest_color_cmyk():
-    logging.info('Starting closest color CMYK query...')
-    start_time = time.time()
-
-    r, g, b, error, status = extract_color_from_request()
-    if error:
-        return jsonify(error), status
-
-    # Convert RGB to CMYK
-    # rgb = sRGBColor(r, g, b, is_upscaled=True)
-    # cmyk = convert_color(rgb, CMYKColor)
-    c, m, y, k = rgb_to_cmyk(r, g, b)
-    conn = connect_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-    # Update the SQL command to compare the CMYK values
-    cur.execute("""
-        SELECT 
-            color_names_cmyk.color_name, 
-            color_names_cmyk.hex, 
-            color_names_cmyk.cmyk <-> CUBE(array[%s,%s,%s,%s]) as distance, 
-            parent_colors_cmyk.color_name as parent_color_name, 
-            parent_colors_cmyk.hex as parent_color_hex
-        FROM color_names_cmyk
-        JOIN parent_colors_cmyk ON color_names_cmyk.parent_color_id = parent_colors_cmyk.id
-        ORDER BY distance
-        LIMIT 1;
-    """, (c, m, y, k))
-
-    result = cur.fetchone()
-    logging.info(f'Result from the database for {[c, m, y, k]}: {result}')
-    if result is None:
-        return jsonify({"error": "No matching color found"}), 404
-    cur.close()
-    conn.close()
-
-    logging.info(f'Entire request took: {time.time() - start_time} seconds')
-    return jsonify(dict(result))
-                
+        logging.info(f'Entire analysis took: {time.time() - start_time} seconds')
+        return json.dumps(palette)                
 
 @app.route('/closest_color_lab', methods=['GET'])
 def get_closest_color():
@@ -231,7 +190,8 @@ def get_closest_color():
         SELECT 
             color_names_lab.color_name, 
             color_names_lab.hex, 
-            color_names_lab.lab <-> CUBE(array[%s,%s,%s]) as distance, 
+            color_names_lab.lab <-> CUBE(array[%s,%s,%s]) as distance,
+            color_names_lab.pantone,
             parent_colors_lab.color_name as parent_color_name, 
             parent_colors_lab.hex as parent_color_hex
         FROM color_names_lab
@@ -247,9 +207,50 @@ def get_closest_color():
     if result is None:
         return jsonify({"error": "No matching color found"}), 404
     
-    logging.info(f'Entire request took: {time.time() - start_time} seconds')
+    logging.info(f'The result: {jsonify(dict(result))}')
+    logging.info(f'Entire closest_color request took: {time.time() - start_time} seconds')
     return jsonify(dict(result))
 
+
+@app.route('/closest_color_lab_old', methods=['GET'])
+def get_closest_color():
+    logging.info('Starting closest color lab query...')
+    start_time = time.time()
+
+    r, g, b, error, status = extract_color_from_request()
+    if error:
+        return jsonify(error), status
+
+    # Convert RGB to LAB
+    rgb = sRGBColor(r, g, b, is_upscaled=True)
+    lab = convert_color(rgb, LabColor)
+
+    conn = conn = connect_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    # Update the SQL command to compare the LAB values
+    cur.execute("""
+        SELECT 
+            color_names_lab_old.color_name, 
+            color_names_lab_old.hex, 
+            color_names_lab_old.lab <-> CUBE(array[%s,%s,%s]) as distance,
+            parent_colors_lab.color_name as parent_color_name, 
+            parent_colors_lab.hex as parent_color_hex
+        FROM color_names_lab_old
+        JOIN parent_colors_lab ON color_names_lab_old.parent_color_id = parent_colors_lab.id
+        ORDER BY distance
+        LIMIT 1;
+    """, (lab.lab_l, lab.lab_a, lab.lab_b))
+
+    result = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if result is None:
+        return jsonify({"error": "No matching color found"}), 404
+    logging.info(f'The result: {jsonify(dict(result))}')
+    logging.info(f'Entire closest_color request took: {time.time() - start_time} seconds')
+    return jsonify(dict(result))
 
 @app.route('/closest_color_rgb', methods=['GET'])
 def get_closest_color_rgb():
@@ -281,7 +282,7 @@ def get_closest_color_rgb():
     cur.close()
     conn.close()
 
-    logging.info(f'Entire request took: {time.time() - start_time} seconds')
+    logging.info(f'Entire closest_color request took: {time.time() - start_time} seconds')
     return jsonify(dict(result))
 
 

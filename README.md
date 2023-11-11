@@ -50,3 +50,12 @@ docker build -t image-colors . && docker run -p 8080:8080 image-colors
 ## References
 - Python color math libraries: https://python-colormath.readthedocs.io/
 - Colors array used: https://chir.ag/projects/name-that-color ||  https://chir.ag/projects/ntc/ntc.js
+- Pabtone colors used: https://github.com/Margaret2/pantone-colors/blob/master/pantone-numbers.json
+
+
+## Next tasks
+- update the favico to reflect the app
+- use pantone colors
+- update the color tooltips
+- update the app components to look 'fancier'
+- use a better, more intuitive pie chart
