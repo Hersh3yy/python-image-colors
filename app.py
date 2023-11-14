@@ -192,10 +192,9 @@ def get_closest_color():
             color_names_lab.hex, 
             color_names_lab.lab <-> CUBE(array[%s,%s,%s]) as distance,
             color_names_lab.pantone,
-            parent_colors_lab.color_name as parent_color_name, 
-            parent_colors_lab.hex as parent_color_hex
+            parent_color_name, 
+            parent_color_hex
         FROM color_names_lab
-        JOIN parent_colors_lab ON color_names_lab.parent_color_id = parent_colors_lab.id
         ORDER BY distance
         LIMIT 1;
     """, (lab.lab_l, lab.lab_a, lab.lab_b))
@@ -234,15 +233,15 @@ def get_closest_color_old():
             color_names_lab_old.color_name, 
             color_names_lab_old.hex, 
             color_names_lab_old.lab <-> CUBE(array[%s,%s,%s]) as distance,
-            parent_colors_lab.color_name as parent_color_name, 
-            parent_colors_lab.hex as parent_color_hex
+            parent_color_name, 
+            parent_color_hex
         FROM color_names_lab_old
-        JOIN parent_colors_lab ON color_names_lab_old.parent_color_id = parent_colors_lab.id
         ORDER BY distance
         LIMIT 1;
     """, (lab.lab_l, lab.lab_a, lab.lab_b))
 
     result = cur.fetchone()
+    logging.info(result)
     cur.close()
     conn.close()
 
