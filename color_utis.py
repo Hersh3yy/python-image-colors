@@ -69,26 +69,27 @@ def closest_color_in_space(requested_color, parent_colors, color_space):
         min_distances[distance] = hex, name
 
     # Sort and get closest color
-    logging.info(min_distances.items())
-    logging.info(min(min_distances.items()))
     closest_color = min(min_distances.items())
+    distance = closest_color[0]
+    hex, name = closest_color[1]
+
 
     logging.info(f"Closest found {color_space} color for {name}: {closest_color}")
-    return closest_color
+    return hex, name, distance
 
 parent_colors_dict = {hex: name for hex, name in parent_colors}
 
-def insert_color_name_sql_command(color_info, color_space, pantone):
+def insert_color_name_sql_command(color_info, color_space, pantone = 0):
     hex, name = color_info
     r, g, b = hex_to_rgb(hex)
     lab_l, lab_a, lab_b = hex_to_lab(hex)
     c, m, y, k = hex_to_cmyk(hex)
 
-    closest_color_hex, closest_color_name = closest_color_in_space((hex, name), parent_colors_dict, color_space)
+    closest_color_hex, closest_color_name, closest_color_distance = closest_color_in_space((hex, name), parent_colors_dict, color_space)
     logging.info(f"Closest color computed: {closest_color_name} - {closest_color_hex}")
 
-    sql_command = f"""INSERT INTO color_names_{color_space} (color_name, hex, pantone, rgb, lab, cmyk, parent_color_name, parent_color_hex)
-    VALUES ('{name}', '{hex}', '{pantone}', CUBE(array[{r}, {g}, {b}]), CUBE(array[{lab_l}, {lab_a}, {lab_b}]), CUBE(array[{c}, {m}, {y}, {k}]), {closest_color_name}, {closest_color_hex});\n"""
-
+    sql_command = f"""INSERT INTO color_names_{color_space} (color_name, hex, rgb, lab, cmyk, parent_color_name, parent_color_hex, parent_color_distance)
+    VALUES ('{name}', '{hex}', CUBE(array[{r}, {g}, {b}]), CUBE(array[{lab_l}, {lab_a}, {lab_b}]), CUBE(array[{c}, {m}, {y}, {k}]), '{closest_color_name}', '{closest_color_hex}', '{closest_color_distance}');\n"""
+    # logging.info(f"Sql command: {sql_command}")
     with open(f"insert_commands_{color_space}.sql", 'a') as f:
         f.write(sql_command)
