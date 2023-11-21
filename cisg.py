@@ -1,6 +1,5 @@
 # Color Insert Script Generator || CISG
 import logging
-import psycopg2
 import argparse
 from pantone_numbers import color_names
 from color_utis import insert_color_name_sql_command

@@ -88,8 +88,8 @@ def insert_color_name_sql_command(color_info, color_space, pantone = 0):
     closest_color_hex, closest_color_name, closest_color_distance = closest_color_in_space((hex, name), parent_colors_dict, color_space)
     logging.info(f"Closest color computed: {closest_color_name} - {closest_color_hex}")
 
-    sql_command = f"""INSERT INTO color_names_{color_space} (color_name, hex, rgb, lab, cmyk, parent_color_name, parent_color_hex, parent_color_distance)
-    VALUES ('{name}', '{hex}', CUBE(array[{r}, {g}, {b}]), CUBE(array[{lab_l}, {lab_a}, {lab_b}]), CUBE(array[{c}, {m}, {y}, {k}]), '{closest_color_name}', '{closest_color_hex}', '{closest_color_distance}');\n"""
+    sql_command = f"""INSERT INTO color_names_{color_space} (pantone, color_name, hex, rgb, lab, cmyk, parent_color_name, parent_color_hex, parent_color_distance)
+    VALUES ('{pantone}', '{name}', '{hex}', CUBE(array[{r}, {g}, {b}]), CUBE(array[{lab_l}, {lab_a}, {lab_b}]), CUBE(array[{c}, {m}, {y}, {k}]), '{closest_color_name}', '{closest_color_hex}', '{closest_color_distance}');\n"""
     # logging.info(f"Sql command: {sql_command}")
     with open(f"insert_commands_{color_space}.sql", 'a') as f:
         f.write(sql_command)
