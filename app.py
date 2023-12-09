@@ -192,6 +192,7 @@ def get_closest_color():
             color_names_lab.hex, 
             color_names_lab.lab <-> CUBE(array[%s,%s,%s]) as distance,
             color_names_lab.pantone,
+            color_names_lab.lab,    
             parent_color_name, 
             parent_color_hex,
             parent_color_distance
